@@ -7,6 +7,7 @@
 
 require 'net/http'
 require 'json'
+require 'date'
 
 # only need this for debugging, and not in standard lib
 require 'awesome_print' if ENV['DEBUG']
@@ -14,6 +15,9 @@ require 'awesome_print' if ENV['DEBUG']
 def debug(msg)
   ap msg if ENV['DEBUG']
 end
+
+# set stop date to either argument or beginning of last year
+@stop_date = ARGV[0] ? Date.parse(ARGV[0]) : Date.new(Date.today.year - 1)
 
 @help_message = <<-HEREDOC
   First you'll need to set or update your access token, which you can get from the browser console on the creditkarma site.  See the README for more details with screenshots https://github.com/mmrobins/creditkarma_export_transactions?tab=readme-ov-file#access-token
@@ -3937,7 +3941,8 @@ if out_file_csv.size == 0
   out_file_csv.puts %Q{"Date","Description","Original Description","Amount","Transaction Type","Category","Account Name","Labels","Notes"}
 end
 
-while has_next_page
+stop = false
+while has_next_page && !stop
   puts "getting next page cursor: #{cursor}" if cursor
   resp = get_transactions(cursor)
   resp_data = resp.dig('data', 'prime', 'transactionsHub', 'transactionPage', 'transactions')
@@ -3986,7 +3991,8 @@ while has_next_page
   end
 
   total_transactions += tra_batch
-  puts "total transactions: #{total_transactions.size}, last date: #{tra_batch.last[:date]}"
+  puts "total transactions: #{total_transactions.size}, last date: #{tra_batch.last[:date]}, stop date: #{@stop_date}"
+  stop = true if Date.parse(tra_batch.last[:date]) < @stop_date
 
   page_info = resp['data']['prime']['transactionsHub']['transactionPage']['pageInfo']
   cursor = page_info['endCursor']
